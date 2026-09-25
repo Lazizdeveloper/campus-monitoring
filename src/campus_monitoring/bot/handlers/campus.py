@@ -103,7 +103,7 @@ async def cmd_clusters(message: Message, api_client: School21ApiClient) -> None:
             for chunk in chunks[1:]:
                 await message.answer(chunk, parse_mode="HTML")
         else:
-            await wait_msg.edit_text(final_text, reply_markup=get_clusters_inline_keyboard, get_cluster_selection_keyboard, get_cluster_back_keyboard(campus_id), parse_mode="HTML")
+            await wait_msg.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
             
     except School21ApiError as e:
         await wait_msg.edit_text(f"⚠️ API xatosi: {e.message}")
@@ -185,7 +185,7 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
             for chunk in chunks[1:]:
                 await callback.message.answer(chunk, parse_mode="HTML")
         else:
-            await callback.message.edit_text(final_text, reply_markup=get_clusters_inline_keyboard, get_cluster_selection_keyboard, get_cluster_back_keyboard(campus_id), parse_mode="HTML")
+            await callback.message.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
         
         await callback.answer("Klasterlar yangilandi ✅")
     except Exception as e:
