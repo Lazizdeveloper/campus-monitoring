@@ -72,7 +72,15 @@ class School21ApiClient:
     ) -> Any:
         session = await self.get_session()
         url = f"{self.base_url}{endpoint}"
-        cleaned_params = {k: v for k, v in (params or {}).items() if v is not None}
+        
+        cleaned_params = {}
+        if params:
+            for k, v in params.items():
+                if v is not None:
+                    if isinstance(v, bool):
+                        cleaned_params[k] = str(v).lower()
+                    else:
+                        cleaned_params[k] = v
 
         try:
             # API xatosi tufayli login pageda (keycloak:8080) xato yuz bermasligi uchun 
