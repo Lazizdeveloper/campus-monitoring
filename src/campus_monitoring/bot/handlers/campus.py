@@ -127,12 +127,9 @@ async def cmd_cluster_map(message: Message, api_client: School21ApiClient) -> No
             return
 
         lines = [f"🏢 <b>Klaster #{cluster_id} - Band o'rinlar:</b>\n"]
-        for wp in cmap.clusterMap[:30]:
+        for wp in cmap.clusterMap:
             user_login = wp.login or "Noma'lum"
             lines.append(f"• <code>{wp.row.upper()}{wp.number}</code>: 👤 <code>{user_login}</code>")
-
-        if len(cmap.clusterMap) > 30:
-            lines.append(f"\n<i>... va yana {len(cmap.clusterMap) - 30} ta o'rindiq band.</i>")
 
         await wait_msg.edit_text("\n".join(lines), parse_mode="HTML")
     except NotFoundError:
@@ -192,6 +189,7 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
         await callback.answer(f"Xatolik: {e}", show_alert=True)
 
 @router.message(Command("here"))
+@router.message(F.text == "📍 Barcha o'tirganlar")
 async def cmd_here(message: Message, api_client: School21ApiClient) -> None:
     wait_msg = await message.answer("⏳ Kampusdagi barcha talabalar qidirilmoqda...")
     try:

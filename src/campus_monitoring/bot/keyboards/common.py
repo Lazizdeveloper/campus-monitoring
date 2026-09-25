@@ -9,11 +9,11 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
         ],
         [
             KeyboardButton(text="🏢 Klasterlar holati"),
-            KeyboardButton(text="🏷 PRP/CRP Savdolari"),
+            KeyboardButton(text="📍 Barcha o'tirganlar"),
         ],
         [
             KeyboardButton(text="📅 Tadbirlar"),
-            KeyboardButton(text="ℹ️ Yordam"),
+            KeyboardButton(text="🏷 PRP/CRP Savdolari"),
         ],
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
