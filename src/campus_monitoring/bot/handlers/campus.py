@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 
 from campus_monitoring.api.client import School21ApiClient
 from campus_monitoring.api.exceptions import NotFoundError, School21ApiError
-from campus_monitoring.bot.keyboards.common import get_clusters_inline_keyboard
+from campus_monitoring.bot.keyboards.common import get_clusters_inline_keyboard, get_cluster_selection_keyboard, get_cluster_back_keyboard
 from campus_monitoring.bot.utils.formatter import format_clusters_overview
 from campus_monitoring.config import settings
 
@@ -103,7 +103,7 @@ async def cmd_clusters(message: Message, api_client: School21ApiClient) -> None:
             for chunk in chunks[1:]:
                 await message.answer(chunk, parse_mode="HTML")
         else:
-            await wait_msg.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
+            await wait_msg.edit_text(final_text, reply_markup=get_clusters_inline_keyboard, get_cluster_selection_keyboard, get_cluster_back_keyboard(campus_id), parse_mode="HTML")
             
     except School21ApiError as e:
         await wait_msg.edit_text(f"⚠️ API xatosi: {e.message}")
@@ -185,7 +185,7 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
             for chunk in chunks[1:]:
                 await callback.message.answer(chunk, parse_mode="HTML")
         else:
-            await callback.message.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
+            await callback.message.edit_text(final_text, reply_markup=get_clusters_inline_keyboard, get_cluster_selection_keyboard, get_cluster_back_keyboard(campus_id), parse_mode="HTML")
         
         await callback.answer("Klasterlar yangilandi ✅")
     except Exception as e:
@@ -194,7 +194,7 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
 @router.message(Command("here"))
 @router.message(F.text == "📍 Barcha o'tirganlar")
 async def cmd_here(message: Message, api_client: School21ApiClient) -> None:
-    wait_msg = await message.answer("⏳ Kampusdagi barcha talabalar qidirilmoqda...")
+    wait_msg = await message.answer("⏳ Kampus klasterlari qidirilmoqda...")
     try:
         campus_id = await resolve_campus_id(api_client, None)
         if not campus_id:
@@ -206,39 +206,65 @@ async def cmd_here(message: Message, api_client: School21ApiClient) -> None:
             await wait_msg.edit_text("🏢 Kampusda klasterlar mavjud emas.")
             return
             
-        all_lines = ["🏢 <b>Hozir kampusda (Samarkand) o'tirgan talabalar:</b>\n"]
-        total_people = 0
+        text = "🏢 <b>Kampusdagi klasterlar ro'yxati:</b>\n\nQaysi klasterdagi talabalarni ko'rmoqchisiz? Pastdagi tugmalardan birini tanlang:"
         
-        for cluster in clusters_res.clusters:
-            try:
-                cmap = await api_client.get_cluster_map(cluster_id=cluster.id, occupied=True, limit=500)
-                all_lines.append(f"\n📍 <b>Klaster {cluster.name}:</b>")
-                if cmap.clusterMap:
-                    for wp in cmap.clusterMap:
-                        user_login = wp.login or "Noma'lum"
-                        all_lines.append(f"• <code>{wp.row.upper()}{wp.number}</code> ➖ 👤 <code>{user_login}</code>")
-                        total_people += 1
-                else:
-                    all_lines.append("<i>Hech kim yo'q (Bo'sh)</i>")
-            except Exception as e:
-                logger.error(f"Cluster {cluster.id} xaritasi xatosi: {e}")
-                
-        if total_people == 0:
-            await wait_msg.edit_text("🏢 Hozirda kampusda hech kim yo'q (yoki barcha kompyuterlar bo'sh).")
-            return
-            
-        all_lines.insert(1, f"<i>Jami: {total_people} kishi</i>")
-        
-        # Telegram message length limit is 4096, we might need to split if it's too long
-        final_text = "\n".join(all_lines)
-        if len(final_text) > 4000:
-            # Chunk the message
-            chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
-            await wait_msg.edit_text(chunks[0], parse_mode="HTML")
-            for chunk in chunks[1:]:
-                await message.answer(chunk, parse_mode="HTML")
-        else:
-            await wait_msg.edit_text(final_text, parse_mode="HTML")
+        await wait_msg.edit_text(
+            text, 
+            reply_markup=get_cluster_selection_keyboard(clusters_res.clusters), 
+            parse_mode="HTML"
+        )
             
     except Exception as e:
         await wait_msg.edit_text(f"⚠️ Xatolik yuz berdi: {e}")
+
+@router.callback_query(F.data.startswith("map:cl:"))
+async def cb_map_cluster(callback: CallbackQuery, api_client: School21ApiClient) -> None:
+    cluster_id = int(callback.data.split(":")[2])
+    await callback.answer("⏳ Klaster xaritasi yuklanmoqda...", show_alert=False)
+    try:
+        # To get the cluster name, we need to fetch all clusters again since we only have ID
+        campus_id = await resolve_campus_id(api_client, None)
+        clusters_res = await api_client.get_campus_clusters(campus_id)
+        cluster_name = str(cluster_id)
+        for c in clusters_res.clusters:
+            if c.id == cluster_id:
+                cluster_name = c.name
+                break
+                
+        cmap = await api_client.get_cluster_map(cluster_id=cluster_id, occupied=True, limit=500)
+        
+        all_lines = [f"📍 <b>Klaster {cluster_name}:</b>\n"]
+        if cmap.clusterMap:
+            for wp in cmap.clusterMap:
+                user_login = wp.login or "Noma'lum"
+                all_lines.append(f"• <code>{wp.row.upper()}{wp.number}</code> ➖ 👤 <code>{user_login}</code>")
+        else:
+            all_lines.append("<i>Hech kim yo'q (Bo'sh)</i>")
+            
+        final_text = "\n".join(all_lines)
+        if len(final_text) > 4000:
+            final_text = final_text[:3900] + "\n\n... (xabar juda uzun, qisqartirildi)"
+            
+        await callback.message.edit_text(
+            final_text, 
+            reply_markup=get_cluster_back_keyboard(), 
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await callback.answer(f"Xatolik: {e}", show_alert=True)
+
+@router.callback_query(F.data == "map:back")
+async def cb_map_back(callback: CallbackQuery, api_client: School21ApiClient) -> None:
+    await callback.answer()
+    try:
+        campus_id = await resolve_campus_id(api_client, None)
+        clusters_res = await api_client.get_campus_clusters(campus_id)
+        text = "🏢 <b>Kampusdagi klasterlar ro'yxati:</b>\n\nQaysi klasterdagi talabalarni ko'rmoqchisiz? Pastdagi tugmalardan birini tanlang:"
+        
+        await callback.message.edit_text(
+            text, 
+            reply_markup=get_cluster_selection_keyboard(clusters_res.clusters), 
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await callback.answer(f"Xatolik: {e}", show_alert=True)
