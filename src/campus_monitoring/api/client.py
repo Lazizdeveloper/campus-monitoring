@@ -52,9 +52,11 @@ class School21ApiClient:
 
     async def get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
+            connector = aiohttp.TCPConnector(ssl=False)
             self._session = aiohttp.ClientSession(
                 headers=self._get_headers(),
                 timeout=aiohttp.ClientTimeout(total=15),
+                connector=connector,
             )
         return self._session
 
