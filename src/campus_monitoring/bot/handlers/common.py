@@ -24,7 +24,12 @@ Quyidagi buyruqlardan foydalanishingiz mumkin:
 • <code>/clusters</code> — Klasterlardagi bo'sh va band o'rinlar monitoringi
 • <code>/map &lt;cluster_id&gt;</code> — Klaster xaritasi va band joylar
 
-<b>🔔 Savdolar va Tadbirlar:</b>
+<b>🔔 Xabarnomalar (Bildirishnomalar):</b>
+• <code>/track &lt;login&gt;</code> — Talaba kampusga kirgani/chiqqani haqida bildirishnoma yoqish
+• <code>/untrack &lt;login&gt;</code> — Talaba kuzatuvini to'xtatish
+• <code>/reviews on|off</code> — Sizga peer-review tushganda avtomatik xabar berishni yoqish/o'chirish
+
+<b>📊 Savdolar va Tadbirlar:</b>
 • <code>/sales</code> — PRP va CRP peer-review savdolari (sales) holati
 • <code>/events</code> — Yaqin kunlardagi kampus tadbirlari va imtihonlar
 
@@ -59,3 +64,40 @@ async def cmd_cancel(message: Message, state: FSMContext) -> None:
         return
     await state.clear()
     await message.answer("Amal bekor qilindi.", reply_markup=get_main_keyboard())
+
+from campus_monitoring.services.subscriptions import subs_manager
+
+@router.message(Command("track"))
+async def cmd_track(message: Message) -> None:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        await message.answer("Iltimos, talaba loginini kiriting: `/track <login>`", parse_mode="Markdown")
+        return
+    login = parts[1].strip().lower()
+    subs_manager.add_track(message.chat.id, login)
+    await message.answer(f"✅ <b>{login}</b> qamrovga olindi!\n\nEndi u kampusga kirganda, joyini o'zgartirganda yoki kampusdan chiqqanda bot avtomatik ravishda xabar yuboradi.", parse_mode="HTML")
+
+@router.message(Command("untrack"))
+async def cmd_untrack(message: Message) -> None:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        await message.answer("Iltimos, talaba loginini kiriting: `/untrack <login>`", parse_mode="Markdown")
+        return
+    login = parts[1].strip().lower()
+    subs_manager.remove_track(message.chat.id, login)
+    await message.answer(f"❌ <b>{login}</b> kuzatuvdan olib tashlandi.", parse_mode="HTML")
+
+@router.message(Command("reviews"))
+async def cmd_reviews(message: Message) -> None:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2 or parts[1].lower() not in ["on", "off"]:
+        await message.answer("Iltimos, holatni kiriting: `/reviews on` yoki `/reviews off`", parse_mode="Markdown")
+        return
+    
+    state = parts[1].lower() == "on"
+    subs_manager.set_reviews(message.chat.id, state)
+    
+    if state:
+        await message.answer("✅ <b>Peer-review xabarnomalari yoqildi!</b>\n\nSizga yangi baholash (peer-review) tushganda yoki agendangizda yangi baholash paydo bo'lganda bot darhol xabar beradi.", parse_mode="HTML")
+    else:
+        await message.answer("❌ <b>Peer-review xabarnomalari o'chirildi.</b>", parse_mode="HTML")
