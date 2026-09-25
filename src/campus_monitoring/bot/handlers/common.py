@@ -22,7 +22,8 @@ Quyidagi buyruqlardan foydalanishingiz mumkin:
 <b>🏢 Kampus va Klasterlar:</b>
 • <code>/campuses</code> — Barcha kampuslar ro'yxati
 • <code>/clusters</code> — Klasterlardagi bo'sh va band o'rinlar monitoringi
-• <code>/map &lt;cluster_id&gt;</code> — Klaster xaritasi va band joylar
+• <code>/map &lt;cluster_id&gt;</code> — Bitta klaster xaritasi va band joylar
+• <code>/here</code> — <b>Butun kampusda (Samarqand) o'tirgan barcha talabalar ro'yxati</b>
 
 <b>🔔 Xabarnomalar (Bildirishnomalar):</b>
 • <code>/track &lt;login&gt;</code> — Talaba kampusga kirgani/chiqqani haqida bildirishnoma yoqish

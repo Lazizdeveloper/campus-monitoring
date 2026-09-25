@@ -120,3 +120,52 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
         await callback.answer("Klasterlar yangilandi ✅")
     except Exception as e:
         await callback.answer(f"Xatolik: {e}", show_alert=True)
+
+@router.message(Command("here"))
+async def cmd_here(message: Message, api_client: School21ApiClient) -> None:
+    wait_msg = await message.answer("⏳ Kampusdagi barcha talabalar qidirilmoqda...")
+    try:
+        campus_id = await resolve_campus_id(api_client, None)
+        if not campus_id:
+            await wait_msg.edit_text("❌ Kampus ID topilmadi.")
+            return
+
+        clusters_res = await api_client.get_campus_clusters(campus_id)
+        if not clusters_res.clusters:
+            await wait_msg.edit_text("🏢 Kampusda klasterlar mavjud emas.")
+            return
+            
+        all_lines = ["🏢 <b>Hozir kampusda (Samarkand) o'tirgan talabalar:</b>\n"]
+        total_people = 0
+        
+        for cluster in clusters_res.clusters:
+            try:
+                cmap = await api_client.get_cluster_map(cluster_id=cluster.id, occupied=True, limit=500)
+                if cmap.clusterMap:
+                    all_lines.append(f"\n📍 <b>Klaster {cluster.name}:</b>")
+                    for wp in cmap.clusterMap:
+                        user_login = wp.login or "Noma'lum"
+                        all_lines.append(f"• <code>{wp.row.upper()}{wp.number}</code> ➖ 👤 <code>{user_login}</code>")
+                        total_people += 1
+            except Exception as e:
+                logger.error(f"Cluster {cluster.id} xaritasi xatosi: {e}")
+                
+        if total_people == 0:
+            await wait_msg.edit_text("🏢 Hozirda kampusda hech kim yo'q (yoki barcha kompyuterlar bo'sh).")
+            return
+            
+        all_lines.insert(1, f"<i>Jami: {total_people} kishi</i>")
+        
+        # Telegram message length limit is 4096, we might need to split if it's too long
+        final_text = "\n".join(all_lines)
+        if len(final_text) > 4000:
+            # Chunk the message
+            chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
+            await wait_msg.edit_text(chunks[0], parse_mode="HTML")
+            for chunk in chunks[1:]:
+                await message.answer(chunk, parse_mode="HTML")
+        else:
+            await wait_msg.edit_text(final_text, parse_mode="HTML")
+            
+    except Exception as e:
+        await wait_msg.edit_text(f"⚠️ Xatolik yuz berdi: {e}")
