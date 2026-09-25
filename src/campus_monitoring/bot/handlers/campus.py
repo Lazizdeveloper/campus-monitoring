@@ -61,12 +61,47 @@ async def cmd_clusters(message: Message, api_client: School21ApiClient) -> None:
             return
 
         clusters_res = await api_client.get_campus_clusters(campus_id)
-        text = format_clusters_overview(clusters_res.clusters)
-        await wait_msg.edit_text(
-            text,
-            reply_markup=get_clusters_inline_keyboard(campus_id),
-            parse_mode="HTML",
-        )
+        
+        all_lines = ["🏢 <b>Klasterlar holati:</b>\n"]
+        total_seats = 0
+        total_available = 0
+        
+        for cl in clusters_res.clusters:
+            total_seats += cl.capacity
+            total_available += cl.availableCapacity
+            
+            all_lines.append(f"🔹 <b>Qavat {cl.name}</b>")
+            try:
+                cmap = await api_client.get_cluster_map(cluster_id=cl.id, occupied=True, limit=500)
+                if cmap.clusterMap:
+                    for wp in cmap.clusterMap:
+                        user_login = wp.login or "Noma'lum"
+                        # Format: Qavat tillakori: ti-a5 nick
+                        all_lines.append(f"Qavat {cl.name}: {wp.row.lower()}{wp.number} {user_login}")
+                else:
+                    all_lines.append("<i>Bo'sh</i>")
+            except Exception as e:
+                all_lines.append("<i>Ma'lumot olinmadi</i>")
+            
+            all_lines.append("") # Bo'sh qator
+
+        occupied = total_seats - total_available
+        pct = (occupied / total_seats * 100) if total_seats > 0 else 0
+        all_lines.append(f"📈 <b>Jami kampus bo'yicha:</b>")
+        all_lines.append(f"Jami o'rinlar: {total_seats}")
+        all_lines.append(f"Bo'sh o'rinlar: {total_available}")
+        all_lines.append(f"Bandlik: {pct:.1f}%")
+
+        final_text = "\n".join(all_lines)
+        
+        if len(final_text) > 4000:
+            chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
+            await wait_msg.edit_text(chunks[0], parse_mode="HTML")
+            for chunk in chunks[1:]:
+                await message.answer(chunk, parse_mode="HTML")
+        else:
+            await wait_msg.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
+            
     except School21ApiError as e:
         await wait_msg.edit_text(f"⚠️ API xatosi: {e.message}")
     except Exception as e:
@@ -111,12 +146,47 @@ async def cb_refresh_clusters(callback: CallbackQuery, api_client: School21ApiCl
     campus_id = callback.data.split(":")[2]
     try:
         clusters_res = await api_client.get_campus_clusters(campus_id)
-        text = format_clusters_overview(clusters_res.clusters)
-        await callback.message.edit_text(
-            text,
-            reply_markup=get_clusters_inline_keyboard(campus_id),
-            parse_mode="HTML",
-        )
+        
+        all_lines = ["🏢 <b>Klasterlar holati:</b>\n"]
+        total_seats = 0
+        total_available = 0
+        
+        for cl in clusters_res.clusters:
+            total_seats += cl.capacity
+            total_available += cl.availableCapacity
+            
+            all_lines.append(f"🔹 <b>Qavat {cl.name}</b>")
+            try:
+                cmap = await api_client.get_cluster_map(cluster_id=cl.id, occupied=True, limit=500)
+                if cmap.clusterMap:
+                    for wp in cmap.clusterMap:
+                        user_login = wp.login or "Noma'lum"
+                        # Format: Qavat tillakori: ti-a5 nick
+                        all_lines.append(f"Qavat {cl.name}: {wp.row.lower()}{wp.number} {user_login}")
+                else:
+                    all_lines.append("<i>Bo'sh</i>")
+            except Exception as e:
+                all_lines.append("<i>Ma'lumot olinmadi</i>")
+            
+            all_lines.append("") # Bo'sh qator
+
+        occupied = total_seats - total_available
+        pct = (occupied / total_seats * 100) if total_seats > 0 else 0
+        all_lines.append(f"📈 <b>Jami kampus bo'yicha:</b>")
+        all_lines.append(f"Jami o'rinlar: {total_seats}")
+        all_lines.append(f"Bo'sh o'rinlar: {total_available}")
+        all_lines.append(f"Bandlik: {pct:.1f}%")
+
+        final_text = "\n".join(all_lines)
+        
+        if len(final_text) > 4000:
+            chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
+            await callback.message.edit_text(chunks[0], parse_mode="HTML")
+            for chunk in chunks[1:]:
+                await callback.message.answer(chunk, parse_mode="HTML")
+        else:
+            await callback.message.edit_text(final_text, reply_markup=get_clusters_inline_keyboard(campus_id), parse_mode="HTML")
+        
         await callback.answer("Klasterlar yangilandi ✅")
     except Exception as e:
         await callback.answer(f"Xatolik: {e}", show_alert=True)
