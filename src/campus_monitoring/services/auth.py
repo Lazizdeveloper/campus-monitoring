@@ -29,6 +29,11 @@ class School21Authenticator:
             # Listen for requests to extract the token
             async def handle_request(request):
                 nonlocal token
+                # Barcha so'rovlarni log qilamiz
+                with open("requests_log.txt", "a") as f:
+                    f.write(f"REQ: {request.url}\n")
+                    f.write(f"HEADERS: {request.headers}\n\n")
+
                 if "platform.21-school.ru" in request.url and "/api/" in request.url:
                     auth_header = request.headers.get("authorization")
                     if auth_header and auth_header.startswith("Bearer "):
@@ -38,6 +43,10 @@ class School21Authenticator:
             page.on("request", handle_request)
 
             try:
+                # Toza log fayli
+                with open("requests_log.txt", "w") as f:
+                    f.write("--- LOG START ---\n")
+
                 await page.goto("https://platform.21-school.ru/")
                 
                 # Wait for the username input
@@ -63,15 +72,27 @@ class School21Authenticator:
                 await page.wait_for_timeout(5000)
 
                 if not token:
-                    # Token still not intercepted, try extracting from localStorage
-                    logger.info("Token so'rovdan tutilmadi, LocalStorage tekshirilmoqda...")
-                    local_storage = await page.evaluate("() => JSON.stringify(localStorage)")
-                    if local_storage:
-                        # Find any JWT token pattern
-                        match = re.search(r'eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*', local_storage)
-                        if match:
-                            token = "Bearer " + match.group(0)
-                            logger.info("Token LocalStorage dan olindi!")
+                    # Token still not intercepted, check cookies (where School21 stores it as tokenId)
+                    logger.info("Token so'rovdan tutilmadi, Cookies va Storage tekshirilmoqda...")
+                    cookies = await context.cookies()
+                    
+                    # 1. Cookie 'tokenId' ni qidiramiz
+                    for cookie in cookies:
+                        if cookie.get('name') == 'tokenId':
+                            token = "Bearer " + cookie.get('value')
+                            logger.info("Token Cookie'dan olindi!")
+                            break
+                    
+                    if not token:
+                        local_storage = await page.evaluate("() => JSON.stringify(localStorage)")
+                        session_storage = await page.evaluate("() => JSON.stringify(sessionStorage)")
+                        for storage in [local_storage, session_storage]:
+                            if storage:
+                                match = re.search(r'eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*', storage)
+                                if match:
+                                    token = "Bearer " + match.group(0)
+                                    logger.info("Token Storage dan olindi!")
+                                    break
 
                 for _ in range(10):
                     if token:
