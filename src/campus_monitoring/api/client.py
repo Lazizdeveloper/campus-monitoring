@@ -75,7 +75,9 @@ class School21ApiClient:
         cleaned_params = {k: v for k, v in (params or {}).items() if v is not None}
 
         try:
-            async with session.request(method, url, params=cleaned_params) as resp:
+            # API xatosi tufayli login pageda (keycloak:8080) xato yuz bermasligi uchun 
+            # allow_redirects=False qilib qo'yamiz
+            async with session.request(method, url, params=cleaned_params, allow_redirects=False) as resp:
                 if resp.status == 200:
                     return await resp.json()
 
@@ -89,10 +91,10 @@ class School21ApiClient:
                 uuid = error_data.get("exceptionUUID", "")
                 code = error_data.get("code", "")
 
-                if resp.status == 401:
+                if resp.status in (401, 302, 303):
                     # Token muddati tugagan bo'lishi mumkin, uni yangilaymiz
                     if self.auth_callback:
-                        logger.info("401 Unauthorized qabul qilindi. Tokenni avtomatik yangilash jarayoni boshlandi...")
+                        logger.info(f"{resp.status} status qabul qilindi. Tokenni avtomatik yangilash jarayoni boshlandi...")
                         try:
                             new_token = await self.auth_callback()
                             if new_token:
@@ -100,12 +102,12 @@ class School21ApiClient:
                                 # Retry the request with the new token
                                 if self._session and not self._session.closed:
                                     self._session.headers.update(self._get_headers())
-                                async with self._session.request(method, url, params=cleaned_params) as retry_resp:
+                                async with self._session.request(method, url, params=cleaned_params, allow_redirects=False) as retry_resp:
                                     if retry_resp.status == 200:
                                         return await retry_resp.json()
                         except Exception as auth_e:
                             logger.error(f"Tokenni yangilashda xatolik: {auth_e}")
-                    raise UnauthorizedError(message=message, uuid=uuid)
+                    raise UnauthorizedError(message=f"Avtorizatsiya xatosi (status: {resp.status})", uuid=uuid)
                 elif resp.status == 403:
                     raise ForbiddenError(message=message, uuid=uuid)
                 elif resp.status == 404:
