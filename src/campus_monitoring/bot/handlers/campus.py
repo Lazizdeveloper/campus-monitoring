@@ -212,12 +212,14 @@ async def cmd_here(message: Message, api_client: School21ApiClient) -> None:
         for cluster in clusters_res.clusters:
             try:
                 cmap = await api_client.get_cluster_map(cluster_id=cluster.id, occupied=True, limit=500)
+                all_lines.append(f"\n📍 <b>Klaster {cluster.name}:</b>")
                 if cmap.clusterMap:
-                    all_lines.append(f"\n📍 <b>Klaster {cluster.name}:</b>")
                     for wp in cmap.clusterMap:
                         user_login = wp.login or "Noma'lum"
                         all_lines.append(f"• <code>{wp.row.upper()}{wp.number}</code> ➖ 👤 <code>{user_login}</code>")
                         total_people += 1
+                else:
+                    all_lines.append("<i>Hech kim yo'q (Bo'sh)</i>")
             except Exception as e:
                 logger.error(f"Cluster {cluster.id} xaritasi xatosi: {e}")
                 
