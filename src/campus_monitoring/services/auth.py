@@ -29,18 +29,17 @@ class School21Authenticator:
             # Listen for requests to extract the token
             async def handle_request(request):
                 nonlocal token
-                if "platform.21-school.ru/services/21-school/api/" in request.url:
+                if "platform.21-school.ru" in request.url and "/api/" in request.url:
                     auth_header = request.headers.get("authorization")
                     if auth_header and auth_header.startswith("Bearer "):
                         token = auth_header
-                        logger.info("Muvaffaqiyatli token olindi!")
+                        logger.info(f"Muvaffaqiyatli token tutib olindi: {request.url}")
 
             page.on("request", handle_request)
 
             try:
                 await page.goto("https://platform.21-school.ru/")
                 
-                # Sberclass / Keycloak SSO form is usually generic
                 # Wait for the username input
                 await page.wait_for_selector("input[name='username'], input[type='text'], input[name='login']", timeout=15000)
                 
@@ -60,11 +59,24 @@ class School21Authenticator:
                 else:
                     await page.keyboard.press("Enter")
 
-                # Wait for a while so that redirects finish and requests are made to the API
-                for _ in range(15):
-                    await asyncio.sleep(1)
+                # Wait for dashboard to load
+                await page.wait_for_timeout(5000)
+
+                if not token:
+                    # Token still not intercepted, try extracting from localStorage
+                    logger.info("Token so'rovdan tutilmadi, LocalStorage tekshirilmoqda...")
+                    local_storage = await page.evaluate("() => JSON.stringify(localStorage)")
+                    if local_storage:
+                        # Find any JWT token pattern
+                        match = re.search(r'eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*', local_storage)
+                        if match:
+                            token = "Bearer " + match.group(0)
+                            logger.info("Token LocalStorage dan olindi!")
+
+                for _ in range(10):
                     if token:
                         break
+                    await page.wait_for_timeout(1000)
 
                 if not token:
                     logger.warning("Kutish vaqti tugadi, token topilmadi. Sahifa skrinshoti saqlanmoqda...")
