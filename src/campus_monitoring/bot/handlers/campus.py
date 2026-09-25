@@ -20,9 +20,12 @@ async def resolve_campus_id(api_client: School21ApiClient, explicit_id: Optional
     if settings.default_campus_id:
         return settings.default_campus_id
 
-    # Fallback to the first available campus
+    # Fallback to Samarkand if possible, else the first one
     try:
         campuses = await api_client.get_campuses()
+        for c in campuses.campuses:
+            if "Samarkand" in c.shortName or "Samarqand" in c.shortName:
+                return c.id
         if campuses.campuses:
             return campuses.campuses[0].id
     except Exception as e:
