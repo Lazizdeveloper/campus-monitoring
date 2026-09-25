@@ -34,9 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 class School21ApiClient:
-    def __init__(self, base_url: str, token: str):
+    def __init__(self, base_url: str, token: str, auth_callback=None):
         self.base_url = base_url.rstrip("/")
         self.token = token
+        self.auth_callback = auth_callback
         self._session: Optional[aiohttp.ClientSession] = None
 
     def _get_headers(self) -> Dict[str, str]:
@@ -87,6 +88,21 @@ class School21ApiClient:
                 code = error_data.get("code", "")
 
                 if resp.status == 401:
+                    # Token muddati tugagan bo'lishi mumkin, uni yangilaymiz
+                    if self.auth_callback:
+                        logger.info("401 Unauthorized qabul qilindi. Tokenni avtomatik yangilash jarayoni boshlandi...")
+                        try:
+                            new_token = await self.auth_callback()
+                            if new_token:
+                                self.token = new_token
+                                # Retry the request with the new token
+                                if self._session and not self._session.closed:
+                                    self._session.headers.update(self._get_headers())
+                                async with self._session.request(method, url, params=cleaned_params) as retry_resp:
+                                    if retry_resp.status == 200:
+                                        return await retry_resp.json()
+                        except Exception as auth_e:
+                            logger.error(f"Tokenni yangilashda xatolik: {auth_e}")
                     raise UnauthorizedError(message=message, uuid=uuid)
                 elif resp.status == 403:
                     raise ForbiddenError(message=message, uuid=uuid)

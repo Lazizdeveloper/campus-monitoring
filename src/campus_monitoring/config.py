@@ -13,6 +13,14 @@ class Settings(BaseSettings):
         default="",
         description="School 21 Authorization API/JWT token",
     )
+    school21_login: str = Field(
+        default="",
+        description="School 21 Login",
+    )
+    school21_password: str = Field(
+        default="",
+        description="School 21 Password",
+    )
     default_campus_id: Optional[str] = Field(
         default=None,
         description="Default campus UUID",
