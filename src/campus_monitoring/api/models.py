@@ -159,7 +159,7 @@ class EventV1DTO(BaseModelIgnoreExtra):
     location: Optional[str] = None
     startDateTime: Optional[str] = None
     endDateTime: Optional[str] = None
-    organizers: List[str] = Field(default_factory=list)
+    organizers: Optional[List[str]] = Field(default_factory=list)
     capacity: Optional[int] = None
     registerCount: Optional[int] = None
 
