@@ -87,7 +87,10 @@ class School21ApiClient:
             # allow_redirects=False qilib qo'yamiz
             async with session.request(method, url, params=cleaned_params, allow_redirects=False) as resp:
                 if resp.status == 200:
-                    return await resp.json()
+                    text = await resp.text()
+                    if not text.strip():
+                        return None
+                    return await resp.json(content_type=None)
 
                 error_data = {}
                 try:
@@ -138,6 +141,8 @@ class School21ApiClient:
     async def get_participant_workstation(self, login: str) -> Optional[ParticipantWorkstationV1DTO]:
         try:
             data = await self._request("GET", f"/v1/participants/{login.strip()}/workstation")
+            if not data:
+                return None
             return ParticipantWorkstationV1DTO.model_validate(data)
         except NotFoundError:
             return None
