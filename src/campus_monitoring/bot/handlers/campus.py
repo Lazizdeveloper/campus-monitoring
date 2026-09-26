@@ -147,7 +147,7 @@ async def cmd_here(message: Message) -> None:
     text = "🏢 <b>Qaysi kampusni tanlaysiz?</b>\n\nPastdagi tugmalardan birini tanlang:"
     await message.answer(
         text, 
-        reply_markup=get_campus_selection_keyboard, get_campus_selection_clusters_keyboard(), 
+        reply_markup=get_campus_selection_keyboard(), 
         parse_mode="HTML"
     )
 
@@ -157,7 +157,7 @@ async def cb_map_start(callback: CallbackQuery) -> None:
     text = "🏢 <b>Qaysi kampusni tanlaysiz?</b>\n\nPastdagi tugmalardan birini tanlang:"
     await callback.message.edit_text(
         text, 
-        reply_markup=get_campus_selection_keyboard, get_campus_selection_clusters_keyboard(), 
+        reply_markup=get_campus_selection_keyboard(), 
         parse_mode="HTML"
     )
 
